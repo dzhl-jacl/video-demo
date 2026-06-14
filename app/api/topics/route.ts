@@ -28,12 +28,21 @@ export async function POST(req: Request) {
 
   try {
     const { system, user } = buildTopicPrompt(news, preferredCategory);
-    const { content, providerUsed } = await chatWithFallback([
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ]);
-    const topics = extractJson<Topic[]>(content);
-    if (!topics || topics.length === 0) throw new Error("解析选题 JSON 失败");
+    let topics: Topic[] | null = null;
+    let providerUsed = "";
+    // 偶发：返回非纯 JSON 导致解析失败，自动重试一次
+    for (let attempt = 0; attempt < 2 && !topics; attempt++) {
+      const userMsg =
+        attempt === 0 ? user : `${user}\n\n注意：只输出合法 JSON 数组本身，不要任何解释文字或 \`\`\` 代码块包裹。`;
+      const r = await chatWithFallback([
+        { role: "system", content: system },
+        { role: "user", content: userMsg },
+      ]);
+      providerUsed = r.providerUsed;
+      const parsed = extractJson<Topic[]>(r.content);
+      if (parsed && parsed.length > 0) topics = parsed;
+    }
+    if (!topics) throw new Error("解析选题 JSON 失败");
     return NextResponse.json({ data: topics, degraded: false, message: `由 ${providerUsed} 生成` });
   } catch (e) {
     console.error("[api/topics] 降级到静态选题:", (e as Error).message);

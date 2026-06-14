@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 interface NavItem {
@@ -18,8 +19,9 @@ interface NavGroup {
 const NAV: NavGroup[] = [
   {
     items: [
+      { href: "/", label: "首页", desc: "平台介绍与快速入口" },
       { href: "/workflow", label: "工作流编排中心", desc: "一条龙 Agent 产线，一键跑全程" },
-      { href: "/", label: "竞品看板", desc: "同类 UP 数据与爆款拆解" },
+      { href: "/dashboard", label: "竞品看板", desc: "同类 UP 数据与爆款拆解" },
     ],
   },
   {
@@ -38,16 +40,18 @@ const NAV: NavGroup[] = [
       { href: "/agents", label: "Agent 库", desc: "每个 Agent 的职责与降级" },
       { href: "/playbook", label: "工作流手册", desc: "提示词与 SOP 沉淀" },
       { href: "/report", label: "选题日报/周报", desc: "产出汇总可分享" },
+      { href: "/about", label: "关于作者", desc: "做这个站的人与初衷" },
     ],
   },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen">
-      <aside className="hidden w-64 shrink-0 border-r border-white/5 bg-panel/40 px-3 py-4 lg:block">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto border-r border-white/5 bg-panel/40 px-3 py-4 lg:block">
         <div className="flex items-center gap-3 px-2 py-2">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent2 text-lg font-black text-bg shadow-lg shadow-accent/20">
             硬
@@ -61,7 +65,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {NAV.map((grp, gi) => (
             <div key={gi} className="space-y-1">
               {grp.group && (
-                <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   {grp.group}
                 </div>
               )}
@@ -82,6 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    data-tour={item.href}
                     className={`group relative block rounded-lg px-3 py-2 transition ${
                       active
                         ? "bg-accent/15 text-accent"
@@ -104,13 +109,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-white/5 px-4 py-3 lg:hidden">
           <span className="font-bold text-slate-50">硬核测评工作台</span>
-          <nav className="ml-auto flex gap-3 text-xs">
-            <Link href="/workflow" className="text-accent">编排</Link>
-            <Link href="/" className="text-accent">看板</Link>
-            <Link href="/radar" className="text-accent">雷达</Link>
-            <Link href="/studio" className="text-accent2">生产</Link>
-          </nav>
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label="菜单"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-200"
+          >
+            {mobileOpen ? "✕" : "☰"}
+          </button>
         </header>
+
+        {mobileOpen && (
+          <div className="border-b border-white/5 bg-panel/95 px-3 py-3 lg:hidden">
+            <nav className="space-y-3">
+              {NAV.map((grp, gi) => (
+                <div key={gi} className="space-y-1">
+                  {grp.group && (
+                    <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      {grp.group}
+                    </div>
+                  )}
+                  {grp.items.map((item) => {
+                    const active = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={`block rounded-lg px-3 py-2 text-sm ${
+                          active ? "bg-accent/15 text-accent" : "text-slate-300 hover:bg-white/5"
+                        }`}
+                      >
+                        {item.label}
+                        <span className="ml-2 text-[11px] text-slate-500">{item.desc}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </div>
+        )}
+
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>

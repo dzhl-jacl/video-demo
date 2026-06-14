@@ -14,7 +14,7 @@ import { inferCategory } from "@/lib/category";
 import type { NewsItem, Topic, VideoScript, ApiResult } from "@/lib/types";
 
 export default function StudioPage() {
-  const { state, update, reset, restored } = usePipeline();
+  const { state, update, removeNews, removeTopic, reset, restored } = usePipeline();
   const reader = useReader();
   const library = useLibrary();
   const [loading, setLoading] = useState<string | null>(null);
@@ -143,8 +143,8 @@ export default function StudioPage() {
         </p>
         <div className="mt-4 flex items-center justify-between">
           <StageBar stage={state.stage} />
-          <button onClick={reset} className="text-xs text-slate-500 hover:text-slate-300">
-            重置
+          <button onClick={reset} className="rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400 hover:bg-white/10 hover:text-slate-200">
+            清空工作台
           </button>
         </div>
         {prefillCategory && (
@@ -158,7 +158,7 @@ export default function StudioPage() {
           </div>
         )}
         <div className="mt-4">
-          <SeedInput onSeed={seedFromText} loading={loading === "news"} />
+          <SeedInput onSeed={seedFromText} loading={loading === "news"} demoSeed="vivo X300 Pro 长焦影像值不值得买" />
         </div>
       </header>
 
@@ -171,15 +171,26 @@ export default function StudioPage() {
                 <span className="ml-1.5 text-xs text-slate-500">{reader.favorites.length}</span>
               )}
             </h2>
-            <Link href="/radar" className="text-xs text-accent hover:text-accent/80">
-              去资讯雷达挑 →
-            </Link>
+            <div className="flex items-center gap-2">
+              {reader.favorites.length > 0 && (
+                <button onClick={reader.clearFavorites} className="text-xs text-slate-500 hover:text-slate-300">
+                  清空待办
+                </button>
+              )}
+              <Link href="/radar" className="text-xs text-accent hover:text-accent/80">
+                去资讯雷达挑 →
+              </Link>
+            </div>
           </div>
           <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1">
             {reader.favorites.length > 0 ? (
-              reader.favorites.map((n) => <NewsCard key={n.id} item={n} />)
+              reader.favorites.map((n) => (
+                <NewsCard key={n.id} item={n} onRemove={() => reader.toggleFavorite(n)} />
+              ))
             ) : state.news.length > 0 ? (
-              state.news.map((n) => <NewsCard key={n.id} item={n} />)
+              state.news.map((n) => (
+                <NewsCard key={n.id} item={n} onRemove={() => removeNews(n.id)} />
+              ))
             ) : (
               <div className="space-y-3 text-xs text-slate-500">
                 <p>选题待办空着呢。去资讯雷达刷一刷，把值得做的料加入待办；或直接采集一批。</p>
@@ -196,7 +207,7 @@ export default function StudioPage() {
         </section>
 
         <section className="lg:col-span-1">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-200">AI 选题</h2>
             <button
               onClick={genTopics}
@@ -206,6 +217,13 @@ export default function StudioPage() {
               {loading === "topics" ? "分析中…" : "智能选题"}
             </button>
           </div>
+          <p className="mb-3 text-[11px] text-slate-500">
+            {topicInput.length === 0
+              ? "选题输入为空，先在左侧攒料"
+              : reader.favorites.length > 0
+              ? `选题输入来自：收藏夹 ${reader.favorites.length} 条`
+              : `选题输入来自：直接采集 ${state.news.length} 条`}
+          </p>
           <div className="grid max-h-[70vh] gap-3 overflow-y-auto pr-1">
             {state.topics.length === 0 ? (
               <p className="text-xs text-slate-500">收藏或采集资讯后，生成选题</p>
@@ -216,6 +234,7 @@ export default function StudioPage() {
                   topic={t}
                   selected={state.selectedTopic?.id === t.id}
                   onSelect={() => genScript(t)}
+                  onRemove={() => removeTopic(t.id)}
                 />
               ))
             )}

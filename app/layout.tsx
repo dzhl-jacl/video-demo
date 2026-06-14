@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 import { Assistant } from "@/components/Assistant";
+import { Onboarding } from "@/components/Onboarding";
 
 export const metadata: Metadata = {
   title: "硬核测评工作台 | 科技数码内容生产平台",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body>
         <AppShell>{children}</AppShell>
         <Assistant />
+        <Onboarding />
       </body>
     </html>
   );

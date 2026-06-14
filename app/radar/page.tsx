@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RadarItem } from "@/components/RadarItem";
+import { CardListSkeleton } from "@/components/Skeleton";
 import { useReader } from "@/lib/useReader";
 import { tagNews, VALUE_TAGS, type ValueTag } from "@/lib/tagging";
 import type { NewsItem, ApiResult } from "@/lib/types";
@@ -172,7 +173,7 @@ export default function RadarPage() {
       </div>
 
       {loading ? (
-        <div className="grid place-items-center py-16 text-sm text-slate-500">加载资讯中…</div>
+        <CardListSkeleton count={6} className="grid gap-3 md:grid-cols-2" />
       ) : filtered.length === 0 ? (
         <div className="grid place-items-center py-16 text-sm text-slate-500">没有符合条件的资讯</div>
       ) : (

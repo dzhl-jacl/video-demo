@@ -16,8 +16,10 @@ const PAGE_CONTEXT: Record<string, string> = {
   "/compare": "横评表生成：多款产品对比",
   "/studio": "选题生产：资讯到脚本一条龙",
   "/library": "脚本库：归档与对比",
+  "/report": "选题日报/周报：产出汇总",
   "/agents": "Agent 库",
   "/playbook": "工作流手册",
+  "/about": "关于作者",
 };
 
 const QUICK = ["这个选题怎么切入更硬核？", "帮我想 3 个视频标题", "这段话怎么改更有活人感？"];
@@ -90,7 +92,9 @@ function FloatingAssistant() {
           className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-bg shadow-lg shadow-accent/20 transition hover:scale-105"
           aria-label="打开 AI 助手"
         >
-          <span className="text-lg">💬</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
         </button>
       )}
 

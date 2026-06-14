@@ -21,3 +21,62 @@ body {
   background: rgba(148, 163, 184, 0.3);
   border-radius: 9999px;
 }
+
+/* 入场动画：淡入上移，用于 Hero / 卡片逐个出现 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+/* 骨架屏微光 */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.08) 25%,
+    rgba(148, 163, 184, 0.16) 37%,
+    rgba(148, 163, 184, 0.08) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* 缓慢漂浮的光晕，用于 Hero 背景 */
+@keyframes floatGlow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(20px, -16px) scale(1.08);
+    opacity: 0.8;
+  }
+}
+.animate-float-glow {
+  animation: floatGlow 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-float-glow,
+  .skeleton {
+    animation: none;
+  }
+}

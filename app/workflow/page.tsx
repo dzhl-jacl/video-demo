@@ -1,22 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { SeedInput } from "@/components/SeedInput";
 import { inferCategory } from "@/lib/category";
 import { usePipeline } from "@/lib/usePipeline";
-import type {
-  NewsItem,
-  Topic,
-  VideoScript,
-  FactCheck,
-  ShotList,
-  SpokenScript,
-  PublishKit,
-  ApiResult,
-} from "@/lib/types";
-
-type NodeId = "collect" | "topic" | "script" | "verify" | "shot" | "spoken" | "copy";
-type NodeStatus = "idle" | "running" | "done" | "degraded";
+import {
+  useWorkflowRun,
+  type NodeId,
+  type NodeStatus,
+  type WorkflowArtifacts,
+} from "@/lib/useWorkflowRun";
+import type { NewsItem, Topic, VideoScript, ApiResult } from "@/lib/types";
 
 interface FlowNode {
   id: NodeId;
@@ -43,40 +36,14 @@ const STATUS_STYLE: Record<NodeStatus, string> = {
   degraded: "border-amber-500/40 bg-amber-500/10 text-amber-300",
 };
 
-interface Artifacts {
-  news?: NewsItem[];
-  topic?: Topic;
-  script?: VideoScript;
-  factCheck?: FactCheck;
-  shotList?: ShotList;
-  spoken?: SpokenScript;
-  publishKit?: PublishKit;
-}
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function WorkflowPage() {
   const { update } = usePipeline();
-  const [status, setStatus] = useState<Record<NodeId, NodeStatus>>({
-    collect: "idle",
-    topic: "idle",
-    script: "idle",
-    verify: "idle",
-    shot: "idle",
-    spoken: "idle",
-    copy: "idle",
-  });
-  const [artifacts, setArtifacts] = useState<Artifacts>({});
-  const [running, setRunning] = useState(false);
-  const [log, setLog] = useState<string[]>([]);
-  const [seedText, setSeedText] = useState<string | null>(null);
-
-  function mark(id: NodeId, s: NodeStatus) {
-    setStatus((prev) => ({ ...prev, [id]: s }));
-  }
-  function addLog(line: string) {
-    setLog((prev) => [...prev, line]);
-  }
+  const { run, restored, markNode, addLog, setArtifacts, setSeedText, resetRun, clearRun } =
+    useWorkflowRun();
+  const { status, log, artifacts, seedText } = run;
+  const running = Object.values(status).some((s) => s === "running");
 
   async function post<T>(api: string, body: unknown): Promise<ApiResult<T>> {
     const res = await fetch(api, {
@@ -89,15 +56,9 @@ export default function WorkflowPage() {
 
   async function runAll(seed?: string) {
     if (running) return;
-    setRunning(true);
-    setLog([]);
-    setArtifacts({});
-    setStatus({
-      collect: "idle", topic: "idle", script: "idle",
-      verify: "idle", shot: "idle", spoken: "idle", copy: "idle",
-    });
+    resetRun(seed ?? null);
 
-    const local: Artifacts = {};
+    const local: WorkflowArtifacts = {};
     // 同步清空 pipeline 下游，避免「去选题工作台」还显示上一次的旧数据
     update({
       news: [], topics: [], selectedTopic: null, script: null,
@@ -105,7 +66,7 @@ export default function WorkflowPage() {
     });
     try {
       // 采集
-      mark("collect", "running");
+      markNode("collect", "running");
       await sleep(400);
       if (seed) {
         local.news = [{
@@ -119,81 +80,100 @@ export default function WorkflowPage() {
         }];
         addLog(`采集 Agent：已接收你的输入「${seed.slice(0, 20)}…」`);
       } else {
-        const r = await post<NewsItem[]>("/api/news", {});
+        const res = await fetch("/api/news", { method: "GET" });
+        const r: ApiResult<NewsItem[]> = await res.json();
         local.news = r.data;
         addLog(`采集 Agent：拿到 ${r.data.length} 条资讯${r.degraded ? "（兜底）" : ""}`);
       }
-      mark("collect", "done");
+      markNode("collect", "done");
       update({ news: local.news ?? [], stage: "news" });
 
       // 选题
-      mark("topic", "running");
+      markNode("topic", "running");
       const rt = await post<Topic[]>("/api/topics", { news: local.news });
       local.topic = rt.data[0];
       setArtifacts({ ...local });
       update({ topics: rt.data, selectedTopic: rt.data[0] ?? null, stage: "topics" });
       addLog(`选题 Agent：${rt.degraded ? "降级示例" : "AI"} 产出「${local.topic?.title?.slice(0, 24)}…」`);
-      mark("topic", rt.degraded ? "degraded" : "done");
+      markNode("topic", rt.degraded ? "degraded" : "done");
 
       // 脚本
-      mark("script", "running");
+      markNode("script", "running");
       const rs = await post<VideoScript>("/api/script", { topic: local.topic });
       local.script = rs.data;
       setArtifacts({ ...local });
       update({ script: rs.data, stage: "script" });
       addLog(`脚本 Agent：${rs.degraded ? "降级示例" : "AI"} 生成 ${rs.data.sections.length} 段脚本`);
-      mark("script", rs.degraded ? "degraded" : "done");
+      markNode("script", rs.degraded ? "degraded" : "done");
 
       // 核查 / 分镜 / 口播 / 文案：都依赖脚本
-      const downstream: { id: NodeId; api: string; key: keyof Artifacts; label: string }[] = [
+      const downstream: { id: NodeId; api: string; key: keyof WorkflowArtifacts; label: string }[] = [
         { id: "verify", api: "/api/verify", key: "factCheck", label: "核查" },
         { id: "shot", api: "/api/shotlist", key: "shotList", label: "分镜" },
         { id: "spoken", api: "/api/spoken", key: "spoken", label: "口播" },
         { id: "copy", api: "/api/publish", key: "publishKit", label: "文案" },
       ];
       for (const d of downstream) {
-        mark(d.id, "running");
+        markNode(d.id, "running");
         const r = await post<unknown>(d.api, { script: local.script });
         (local as Record<string, unknown>)[d.key] = r.data;
         setArtifacts({ ...local });
         update({ [d.key]: r.data });
         addLog(`${d.label} Agent：${r.degraded ? "降级示例" : "AI"} 完成`);
-        mark(d.id, r.degraded ? "degraded" : "done");
+        markNode(d.id, r.degraded ? "degraded" : "done");
       }
       addLog("产线跑通，全部产物已就绪。");
     } catch {
       addLog("某节点请求失败，已停在当前步（演示不崩）。");
-    } finally {
-      setRunning(false);
     }
   }
+
+  if (!restored) {
+    return <div className="grid min-h-screen place-items-center text-slate-500">加载中…</div>;
+  }
+
+  const hasRun = log.length > 0 || Object.values(status).some((s) => s !== "idle");
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-slate-50">工作流编排中心</h1>
         <p className="mt-1 text-sm text-slate-400">
-          把编辑日常的「找选题 → 查资料 → 写脚本 → 配后期」拆成一串可编排的 Agent。一键跑通整条产线。
+          把编辑日常的「找选题 → 查资料 → 写脚本 → 配后期」拆成一串可编排的 Agent。把你手头的料丢进来，整条产线一键跑通。
         </p>
       </header>
 
-      <div className="mb-5">
+      {/* 主入口：贴料灌进产线（最贴合真实使用，结果最可控） */}
+      <div className="mb-4">
         <SeedInput
           onSeed={(t) => { setSeedText(t); runAll(t); }}
           loading={running}
+          demoSeed="vivo X300 Pro 长焦影像值不值得买"
         />
       </div>
 
-      <div className="mb-6 flex items-center gap-3">
+      {/* 次要入口：自动抓真实资讯（结果随机，作为没料时的快速体验） */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <button
           onClick={() => { setSeedText(null); runAll(); }}
           disabled={running}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent/90 disabled:opacity-40"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-40"
         >
-          {running ? "产线运行中…" : "▶ 一键跑全程"}
+          {running ? "产线运行中…" : "或：自动抓资讯跑一遍"}
         </button>
+        <span className="text-[11px] text-slate-500">
+          自动抓的是实时资讯，命中内容随机，建议优先用上面贴料更可控
+        </span>
+        {hasRun && !running && (
+          <button
+            onClick={clearRun}
+            className="ml-auto text-[11px] text-slate-500 hover:text-slate-300"
+          >
+            清空本次运行
+          </button>
+        )}
         {seedText && (
-          <span className="text-xs text-slate-500">当前种子：{seedText.slice(0, 24)}…</span>
+          <span className="w-full text-[11px] text-slate-500">当前种子：{seedText.slice(0, 40)}…</span>
         )}
       </div>
 
@@ -224,7 +204,7 @@ export default function WorkflowPage() {
           <h2 className="text-sm font-semibold text-slate-200">运行日志</h2>
           <div className="mt-2 space-y-1 text-xs text-slate-400">
             {log.length === 0 ? (
-              <p className="text-slate-600">点「一键跑全程」或灌入你的输入，看数据在 Agent 间流动。</p>
+              <p className="text-slate-600">把你的输入灌进产线，或点「自动抓资讯跑一遍」，看数据在 Agent 间流动。</p>
             ) : (
               log.map((l, i) => <p key={i}>· {l}</p>)
             )}

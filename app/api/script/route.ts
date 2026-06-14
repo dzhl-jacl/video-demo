@@ -26,12 +26,21 @@ export async function POST(req: Request) {
 
   try {
     const { system, user } = buildScriptPrompt(topic);
-    const { content, providerUsed } = await chatWithFallback([
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ]);
-    const script = extractJson<VideoScript>(content);
-    if (!script || !script.sections) throw new Error("解析脚本 JSON 失败");
+    let script: VideoScript | null = null;
+    let providerUsed = "";
+    // 偶发：大模型返回非纯 JSON 导致解析失败，自动重试一次（第二次强调只输出 JSON）
+    for (let attempt = 0; attempt < 2 && !script; attempt++) {
+      const userMsg =
+        attempt === 0 ? user : `${user}\n\n注意：只输出合法 JSON 本身，不要任何解释文字或 \`\`\` 代码块包裹。`;
+      const r = await chatWithFallback([
+        { role: "system", content: system },
+        { role: "user", content: userMsg },
+      ]);
+      providerUsed = r.providerUsed;
+      const parsed = extractJson<VideoScript>(r.content);
+      if (parsed && parsed.sections) script = parsed;
+    }
+    if (!script) throw new Error("解析脚本 JSON 失败");
     return NextResponse.json({ data: script, degraded: false, message: `由 ${providerUsed} 生成` });
   } catch (e) {
     console.error("[api/script] 降级到静态脚本:", (e as Error).message);

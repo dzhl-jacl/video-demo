@@ -5,18 +5,28 @@ import { useState } from "react";
 interface SeedInputProps {
   onSeed: (text: string) => void;
   loading?: boolean;
+  demoSeed?: string;
 }
 
 // 「任意输入」入口（杀招）：粘贴产品名/通稿/选题想法，直接灌进产线当场试。
-export function SeedInput({ onSeed, loading }: SeedInputProps) {
+export function SeedInput({ onSeed, loading, demoSeed }: SeedInputProps) {
   const [text, setText] = useState("");
   const examples = ["小米 15 Ultra 影像实测", "新款 AI 眼镜值不值得买", "国补后这台游戏本是真香还是智商税"];
 
   return (
     <div className="rounded-xl border border-accent/20 bg-accent/5 p-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-slate-100">把你手头的料丢进来</span>
         <span className="text-[11px] text-slate-500">产品名 / 厂商通稿 / 一个选题想法都行</span>
+        {demoSeed && (
+          <button
+            onClick={() => !loading && onSeed(demoSeed)}
+            disabled={loading}
+            className="ml-auto rounded-md border border-accent2/30 bg-accent2/10 px-2.5 py-1 text-[11px] text-accent2 hover:bg-accent2/20 disabled:opacity-40"
+          >
+            ✨ 用演示选题一键跑
+          </button>
+        )}
       </div>
       <textarea
         value={text}

@@ -4,20 +4,31 @@ export function TopicCard({
   topic,
   selected,
   onSelect,
+  onRemove,
 }: {
   topic: Topic;
   selected: boolean;
   onSelect: () => void;
+  onRemove?: () => void;
 }) {
   return (
-    <button
+    <div
       onClick={onSelect}
-      className={`w-full rounded-xl border p-4 text-left transition ${
+      className={`group relative w-full cursor-pointer rounded-xl border p-4 text-left transition ${
         selected
           ? "border-accent bg-accent/10"
           : "border-white/5 bg-panel/60 hover:border-accent2/40"
       }`}
     >
+      {onRemove && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          aria-label="移除选题"
+          className="absolute right-2 top-2 hidden h-6 w-6 items-center justify-center rounded-md bg-bg/80 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300 group-hover:flex"
+        >
+          ✕
+        </button>
+      )}
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-sm font-semibold text-slate-100">{topic.title}</h3>
         <span className="shrink-0 rounded-full bg-accent2/15 px-2 py-0.5 text-xs text-accent2">
@@ -48,6 +59,6 @@ export function TopicCard({
         <p className="mt-2 text-[11px] text-amber-400/80">需核实：{topic.controversies.join("、")}</p>
       )}
       <p className="mt-2 text-[11px] text-slate-500">受众：{topic.audience}</p>
-    </button>
+    </div>
   );
 }

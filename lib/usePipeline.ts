@@ -70,6 +70,20 @@ export function usePipeline() {
     setState((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  // 删除单条采集资讯（选题待办里手动剔除不想要的料）
+  const removeNews = useCallback((id: string) => {
+    setState((prev) => ({ ...prev, news: prev.news.filter((n) => n.id !== id) }));
+  }, []);
+
+  // 删除单条选题（剔除 AI 产出里不满意的方向）
+  const removeTopic = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      topics: prev.topics.filter((t) => t.id !== id),
+      selectedTopic: prev.selectedTopic?.id === id ? null : prev.selectedTopic,
+    }));
+  }, []);
+
   const reset = useCallback(() => {
     setState(EMPTY);
     try {
@@ -79,5 +93,5 @@ export function usePipeline() {
     }
   }, []);
 
-  return { state, update, reset, restored };
+  return { state, update, removeNews, removeTopic, reset, restored };
 }
